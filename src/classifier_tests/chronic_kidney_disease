@@ -1,0 +1,125 @@
+# Ignore warnings for readability (will fix warnings)
+import warnings
+warnings.filterwarnings('ignore')
+
+# Standard Pandas and Numpy imports
+import pandas as pd
+import numpy as np
+
+# Import dataset with given column names
+df = pd.read_csv('ckd.csv', header=None, names=['age', 'bp', 'sg', 'al', 'su', 'rbc', 'pc', 'pcc', 'ba', 'bgr', 'bu', 'sc', 'sod', 'pot', 
+                           'hemo', 'pcv', 'wc', 'rc', 'htn', 'dm', 'cad', 'appet', 'pe', 'ane', 'class'])
+                           
+# Remove duplicated header
+df = df.drop(df.index[0])
+
+# Seperate numerical and categorical columns
+numColumns = ['age', 'bp', 'al', 'su', 'bgr', 'bu', 'sc', 'sod', 'pot', 'hemo', 'pcv', 'wc', 'rc']
+cateColumns = df.columns.drop('class').drop(numColumns)
+
+# Convert numerical data
+df[numColumns] = df[numColumns].apply(pd.to_numeric)
+
+# Convert label to binary
+df['class'] = df['class'].apply(lambda x: 1 if x == 'ckd' else 0)
+
+# Seperate features and label
+X = df.drop(columns = 'class')
+y = df['class']
+
+# Import Imputer class from sklearn
+from sklearn.impute import SimpleImputer
+
+# Here we will have two imputers, one for numerical data and one for categorical data
+# Numerical data will impute missing values with the median of that column
+# Categorical column will impute missing values with the most frequent value of that column
+numImputer = SimpleImputer(strategy = 'median')
+cateImputer = SimpleImputer(strategy = 'most_frequent')
+
+# Impute
+X[numColumns] = numImputer.fit_transform(X[numColumns])
+X[cateColumns] = cateImputer.fit_transform(X[cateColumns])
+
+#Represent categorical columns as binary matrix via pandas get_dummies
+X = pd.get_dummies(X, prefix_sep = '_', drop_first = True)
+X.head()
+
+# Import normalizer from sklearn
+from sklearn.preprocessing import Normalizer
+norm = Normalizer(norm = 'l2', copy = False)
+
+# Normalize numerical data
+X[numColumns] = norm.transform(X[numColumns])
+X.head()
+
+# Import KNN classifier
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier()
+
+# Initialize KNN params that will be tested
+kOptions = range(1, 31)
+algorithmOptions = ['ball_tree', 'kd_tree', 'brute']
+gridParamsKNN = dict(n_neighbors = kOptions, algorithm = algorithmOptions)
+
+# Import grid search cross validation
+from sklearn.model_selection import GridSearchCV
+
+# Initialize the grid search with KNN classifier using 10 - cross fold validation
+# The scoring method was set to recall since we are interested in how well it detects anamolies with insufficient data
+gridKNN = GridSearchCV(knn, gridParamsKNN, 'recall_macro', cv = 10)
+gridKNN.fit(X, y)
+
+# RESULTS
+CVScoreKNN = gridKNN.best_score_
+print('10 fold cross validated recall score for KNN classifier: ', CVScoreKNN)
+
+# Import random forest classifier
+from sklearn.ensemble import RandomForestClassifier
+rfc = RandomForestClassifier()
+
+# Initialize RFC params that will be tested
+critOptions = ['gini', 'entropy']
+gridParamsRFC = dict(criterion = critOptions)
+
+# Initialize the grid search with RFC classifier using 10 - cross fold validation
+# The scoring method was set to recall since we are interested in how well it detects anomalies with insufficient data
+gridRFC = GridSearchCV(rfc, gridParamsRFC, 'recall_macro', cv = 10)
+gridRFC.fit(X, y)
+
+#RESULTS
+CVScoreRFC = gridRFC.best_score_
+print('10 fold cross validated recall score for RF classifier: ', CVScoreRFC)
+
+# Import support vector machine classifier 
+from sklearn.svm import SVC
+svc = SVC()
+
+# Initialize SVC params that will be tested
+cOptions = [.03, .01, .1, .5, .9, 2, 5, 10]
+kernelOptions = ['linear', 'rbf', 'sigmoid']
+gridParamsSVC = dict(C = cOptions, kernel = kernelOptions)
+
+# Initialize the grid search with SVM classifier using 10 - cross fold validation
+# The scoring method was set to recall since we are interested in how well it detects anomalies with insufficient data
+gridSVC = GridSearchCV(svc, gridParamsSVC, 'f1_macro', cv = 10)
+gridSVC.fit(X, y)
+
+#RESULTS
+CVScoreSVC = gridSVC.best_score_
+print('10 fold cross validated recall score for SVM classifier: ', CVScoreSVC)
+
+# Import naive bayes classifier and coss validation score
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import cross_val_score
+
+# We use cross_val_score since we don't have parameters to change that will affect the scoring
+nbc = GaussianNB()
+CVScoreNBC = cross_val_score(nbc, X, y, cv = 10, scoring = 'recall_macro').mean()
+
+#RESULTS
+print('10 fold cross validated recall score for NB classifier: ', CVScoreNBC)
+
+print('10 fold cross validated recall score for KNN classifier: ', CVScoreKNN)
+print('10 fold cross validated recall score for RF classifier: ', CVScoreRFC)
+print('10 fold cross validated recall score for SVM classifier: ', CVScoreSVC)
+print('10 fold cross validated recall score for NB classifier: ', CVScoreNBC)
