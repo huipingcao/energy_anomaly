@@ -1,0 +1,83 @@
+# Ignore warnings for readability (will fix warnings)
+import warnings
+warnings.filterwarnings('ignore')
+
+# Standard imports for pandas and numpy
+import pandas as pd
+import numpy as np
+
+# Import dataset and add column headers
+data = pd.read_csv('adult.data')
+data.columns = ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'label']
+
+# Check for null objects
+data.info()
+
+# Seperate numerical and categorical columns
+numColumns = ['age', 'fnlwgt', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week']
+cateColumns = data.columns.drop('label').drop(numColumns)
+
+# Replace any 'private' keys with NaN
+data[numColumns].replace('private', np.nan, inplace = True)
+
+# Check to see if any changes were made. In this case, no numerical values had the private key
+data[numColumns].isnull().sum()
+
+# Seperate features and label
+X = data[data.columns[0:14]]
+y = data[data.columns[-1]]
+
+# Normalize the numerical data 
+from sklearn.preprocessing import Normalizer
+normal = Normalizer(copy = False)
+X[numColumns] = normal.fit_transform(X[numColumns])
+
+#Represent categorical columns as binary matrix via pandas get_dummies
+X = pd.get_dummies(X, prefix_sep = '_', drop_first = True)
+X.head()
+
+# Import naive bayes classifier and coss validation score
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import cross_val_score
+
+# cross_val_score was used instaed of gridsearchCV because of the high runtime
+knn = KNeighborsClassifier(n_neighbors = 3)
+CVScoreKNN = cross_val_score(knn, X, y, cv = 10, scoring = 'recall_macro').mean()
+
+#RESULTS
+print('10 fold cross validated recall score for KNN classifier: ', CVScoreKNN)
+
+# Import random forest classifier
+from sklearn.ensemble import RandomForestClassifier
+rfc = RandomForestClassifier()
+
+# cross_val_score was used instaed of gridsearchCV because of the high runtime
+CVScoreRFC = cross_val_score(rfc, X, y, cv = 10, scoring = 'recall_macro').mean()
+
+#RESULTS
+print('10 fold cross validated recall score for RF classifier: ', CVScoreRFC)
+
+# Import support vector machine classifier 
+from sklearn.svm import SVC
+svc = SVC(kernel = 'linear')
+
+# cross_val_score was used instaed of gridsearchCV because of the high runtime
+CVScoreSVC = cross_val_score(svc, X, y, cv = 10, scoring = 'recall_macro').mean()
+
+#RESULTS
+print('10 fold cross validated recall score for SVM classifier: ', CVScoreSVC)
+
+# Import naive bayes classifier and coss validation score
+from sklearn.naive_bayes import GaussianNB
+
+# We use cross_val_score since we don't have parameters to change that will affect the scoring
+nbc = GaussianNB()
+CVScoreNBC = cross_val_score(nbc, X, y, cv = 10, scoring = 'recall_macro').mean()
+
+#RESULTS
+print('10 fold cross validated recall score for NB classifier: ', CVScoreNBC)
+
+print('10 fold cross validated recall score for KNN classifier: ', CVScoreKNN)
+print('10 fold cross validated recall score for RF classifier: ', CVScoreRFC)
+print('10 fold cross validated recall score for SVM classifier: ', CVScoreSVC)
+print('10 fold cross validated recall score for NB classifier: ', CVScoreNBC)
