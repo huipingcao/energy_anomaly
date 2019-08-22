@@ -1,0 +1,49 @@
+import warnings
+warnings.filterwarnings('ignore')
+
+# Standard imports
+import pandas as pd
+import numpy as np
+import sesd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+# Import dataset
+data = pd.read_csv('AirPassengers.csv')
+data.head()
+
+# Format time data
+data['Month'] = pd.to_datetime(data['Month'], format = '%Y-%m')
+data.info()
+
+# S_H_ESD test 
+df = data['#Passengers']
+outlierIndex = sesd.seasonal_esd(df, hybrid = True, max_anomalies = 10)
+
+# Sort outliers
+outliers = []
+outliersSorted = np.sort(outlierIndex)
+outlierTest = outliersSorted
+for i in outlierTest:
+    outliers.append(df[i])
+    
+# Mark anomalous points for plotting
+anomalyMarks = []
+for i in df:
+    if i in outliers:
+        anomalyMarks.append(i)
+    else:
+        anomalyMarks.append(np.NAN)
+        
+# Plot data and anomalies
+plt.figure(figsize = (20, 8))
+plt.plot(df, linestyle = '-', label = '#Passengers')
+plt.plot(anomalyMarks, 'ro', markersize = '3', label = 'Anomaly')
+
+redLabel = mpatches.Patch(color='red', label='Anomaly')
+blueLabel = mpatches.Patch(color='#62A3C9', label='#Passengers')
+
+plt.legend(handles=[blueLabel, redLabel])
+plt.ylabel('#Passengers')
+plt.xlabel('Points')
+plt.show()
