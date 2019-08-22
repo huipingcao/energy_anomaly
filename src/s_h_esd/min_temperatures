@@ -1,0 +1,61 @@
+# Standard imports
+import pandas as pd
+import numpy as np
+import sesd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+# Ignore warnings for readability
+import warnings
+warnings.filterwarnings('ignore')
+
+# Import dataset via pandas
+data = pd.read_csv('daily-min-temperatures.csv')
+data.head()
+
+# Convert date column to datetime64 dtype
+data['Date'] = pd.to_datetime(data['Date'])
+data.info()
+
+# Create range for plot
+ranges = pd.Series(range(0, 3650))
+data['Count'] = ranges
+data.info()
+
+# PLot dataset
+ts = data.loc[:, ['Count', 'Temp']]
+plt.plot(data['Count'], data['Temp'])
+
+# Data that will be processed through S_H_ESD
+df = data['Temp']
+
+# S_H_ESD test 
+outlierIndex = sesd.seasonal_esd(df, hybrid = True, max_anomalies = 50)
+
+# Sort outliers
+outliers = []
+outliersSorted = np.sort(outlierIndex)
+outlierTest = outliersSorted[:500]
+for i in outlierTest:
+    outliers.append(df[i])
+    
+# Mark anomalous points for plotting
+anomalyMarks = []
+for i in df[:500]:
+    if i in outliers:
+        anomalyMarks.append(i)
+    else:
+        anomalyMarks.append(np.NAN)
+                
+# Plot data and anomalies 
+plt.figure(figsize = (20, 8))
+plt.plot(df[:500], linestyle = '-', label = 'Temperature')
+plt.plot(anomalyMarks, 'ro', markersize = '3', label = 'Anomaly')
+
+redLabel = mpatches.Patch(color='red', label='Anomaly')
+blueLabel = mpatches.Patch(color='blue', label='Temperature')
+
+plt.legend(handles=[blueLabel, redLabel])
+plt.ylabel('Temperature')
+plt.xlabel('Points')
+plt.show()
